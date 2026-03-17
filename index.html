@@ -205,18 +205,18 @@
     </div>
 
     <div class="control-group">
-        <label>Line</label>
-        <select id="line-style">
-            <option value="solid">Solid</option>
-            <option value="dot">Dot</option>
-            <option value="dash">Dash</option>
-            <option value="dashdot">Dash-Dot</option>
+        <label>Bar Mode</label>
+        <select id="bar-mode">
+            <option value="group">Grouped</option>
+            <option value="stack">Stacked</option>
+            <option value="relative">Relative</option>
+            <option value="overlay">Overlay</option>
         </select>
     </div>
 
     <div class="control-group">
-        <label>Marker</label>
-        <input type="range" id="marker-size" min="4" max="20" value="6"/>
+        <label>Bar Gap</label>
+        <input type="range" id="bar-gap" min="0" max="80" value="20"/>
     </div>
 
     <div class="control-group">
@@ -226,6 +226,18 @@
             <option value="bottom">Bottom</option>
             <option value="top-left">Top Left</option>
             <option value="hidden">Hidden</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>Palette</label>
+        <select id="color-palette">
+            <option value="default">Default</option>
+            <option value="vivid">Vivid</option>
+            <option value="pastel">Pastel</option>
+            <option value="earth">Earth</option>
+            <option value="ocean">Ocean</option>
+            <option value="sunset">Sunset</option>
         </select>
     </div>
 
@@ -248,13 +260,22 @@
             themeIcon: document.getElementById('theme-icon'),
             hoverMode: document.getElementById('hover-mode'),
             dragMode: document.getElementById('drag-mode'),
-            lineStyle: document.getElementById('line-style'),
-            markerSize: document.getElementById('marker-size'),
+            barMode: document.getElementById('bar-mode'),
+            barGap: document.getElementById('bar-gap'),
             legendPos: document.getElementById('legend-pos'),
+            colorPalette: document.getElementById('color-palette'),
             resetZoom: document.getElementById('reset-zoom'),
             downloadPng: document.getElementById('download-png'),
             downloadSvg: document.getElementById('download-svg'),
             status: document.getElementById('status'),
+        };
+
+        var PALETTES = {
+            vivid:   ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990'],
+            pastel:  ['#a1c9f4', '#ffb482', '#8de5a1', '#ff9f9b', '#d0bbff', '#debb9b', '#fab0e4', '#cfcfcf', '#fffea3', '#b9f2f0'],
+            earth:   ['#8c510a', '#bf812d', '#dfc27d', '#80cdc1', '#35978f', '#01665e', '#543005', '#003c30', '#c7eae5', '#f6e8c3'],
+            ocean:   ['#023e8a', '#0077b6', '#0096c7', '#00b4d8', '#48cae4', '#90e0ef', '#ade8f4', '#caf0f8', '#005f73', '#94d2bd'],
+            sunset:  ['#ff6b6b', '#ee6c4d', '#f4845f', '#f7b267', '#f7d08a', '#e56b6f', '#b56576', '#6d597a', '#355070', '#eaac8b'],
         };
 
         var isDark = false;
@@ -312,14 +333,14 @@
             Plotly.relayout(EL.chart, {dragmode: this.value});
         });
 
-        // -- Line style --
-        EL.lineStyle.addEventListener('change', function () {
-            Plotly.restyle(EL.chart, {'line.dash': this.value}, traceIndices());
+        // -- Bar mode --
+        EL.barMode.addEventListener('change', function () {
+            Plotly.relayout(EL.chart, {barmode: this.value});
         });
 
-        // -- Marker size --
-        EL.markerSize.addEventListener('input', function () {
-            Plotly.restyle(EL.chart, {'marker.size': parseInt(this.value)}, traceIndices());
+        // -- Bar gap --
+        EL.barGap.addEventListener('input', function () {
+            Plotly.relayout(EL.chart, {bargap: parseInt(this.value) / 100});
         });
 
         // -- Legend position --
@@ -357,6 +378,39 @@
                     };
             }
             Plotly.relayout(EL.chart, update);
+        });
+
+        // -- Color palette --
+        var originalColors = null;
+
+        EL.colorPalette.addEventListener('change', function () {
+            var palette = this.value;
+            if (!figData) return;
+
+            if (!originalColors) {
+                originalColors = figData.map(function (trace) {
+                    return (trace.line && trace.line.color) || (trace.marker && trace.marker.color) || null;
+                });
+            }
+
+            var indices = traceIndices();
+            if (palette === 'default') {
+                indices.forEach(function (i) {
+                    Plotly.restyle(EL.chart, {
+                        'line.color': originalColors[i],
+                        'marker.color': originalColors[i],
+                    }, [i]);
+                });
+            } else {
+                var colors = PALETTES[palette];
+                indices.forEach(function (i) {
+                    var c = colors[i % colors.length];
+                    Plotly.restyle(EL.chart, {
+                        'line.color': c,
+                        'marker.color': c,
+                    }, [i]);
+                });
+            }
         });
 
         // -- Reset zoom --

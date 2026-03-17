@@ -5,21 +5,18 @@ import plotly.express as px
 cwd = Path.cwd()
 csv_path = cwd / "sample_sales.csv"
 
-# Read with Polars
-# Parse date column for cleaner Plotly typing
-df = pl.read_csv(csv_path, try_parse_dates=True)
+df = pl.read_csv(csv_path)
 
-# Build a sample Plotly chart
-fig = px.line(
+fig = px.bar(
     df.to_pandas(),
-    x="date",
-    y="sales",
+    x="quarter",
+    y="revenue",
     color="category",
-    markers=True,
-    title="Sample Sales Over Time by Category",
+    barmode="group",
+    title="Quarterly Revenue by Category",
+    labels={"quarter": "Quarter", "revenue": "Revenue ($K)", "category": "Category"},
 )
 fig.update_layout(template="plotly_white")
 
-# Export chart JSON for Plotly.js
 json_path = cwd / "sample_chart.json"
 json_path.write_text(fig.to_json(), encoding="utf-8")
