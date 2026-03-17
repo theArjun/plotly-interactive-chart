@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Plotly.js JSON Chart Demo</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #ffffff;
+            --surface: #f6f8fa;
+            --border: #d0d7de;
+            --text: #1f2328;
+            --text-muted: #656d76;
+            --accent: #0969da;
+            --accent-hover: #0550ae;
+        }
+
+        .dark {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent-hover: #79c0ff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 24px;
+            transition: background .25s, color .25s;
+        }
+
+        header {
+            max-width: 1060px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        header h1 {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .controls {
+            max-width: 1060px;
+            margin: 0 auto 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 12px;
+            transition: background .25s, border-color .25s;
+        }
+
+        .control-group label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .control-group select,
+        .control-group input[type="range"] {
+            font-size: 0.8rem;
+            border: none;
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+            outline: none;
+        }
+
+        .control-group select {
+            padding: 2px 4px;
+        }
+
+        .control-group select option {
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        input[type="range"] {
+            width: 80px;
+        }
+
+        button.icon-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            color: var(--text);
+            cursor: pointer;
+            transition: background .15s, border-color .15s;
+        }
+
+        button.icon-btn:hover {
+            border-color: var(--accent);
+            background: var(--bg);
+        }
+
+        #chart-wrapper {
+            max-width: 1060px;
+            margin: 0 auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            transition: background .25s, border-color .25s;
+        }
+
+        #chart {
+            width: 100%;
+            height: 520px;
+        }
+
+        .status {
+            max-width: 1060px;
+            margin: 12px auto 0;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: right;
+        }
+
+        .error-msg {
+            padding: 24px;
+            color: #cf222e;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 12px;
+            }
+
+            header h1 {
+                font-size: 1.1rem;
+            }
+
+            #chart {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Plotly.js Chart Demo</h1>
+    <div style="display:flex;gap:10px;align-items:center;">
+        <a class="icon-btn" href="https://github.com/theArjun/plotly-interactive-chart" target="_blank" rel="noopener" title="View on GitHub" style="text-decoration:none;">
+            <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+        </a>
+        <button class="icon-btn" id="theme-toggle" title="Toggle dark mode">
+            <span id="theme-icon">&#9789;</span> Dark
+        </button>
+    </div>
+</header>
+
+<div class="controls">
+    <div class="control-group">
+        <label>Hover</label>
+        <select id="hover-mode">
+            <option value="x unified">X Unified</option>
+            <option value="closest">Closest</option>
+            <option value="x">X</option>
+            <option value="y">Y</option>
+            <option value="false">Off</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>Drag</label>
+        <select id="drag-mode">
+            <option value="zoom">Zoom</option>
+            <option value="pan">Pan</option>
+            <option value="select">Select</option>
+            <option value="lasso">Lasso</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>Line</label>
+        <select id="line-style">
+            <option value="solid">Solid</option>
+            <option value="dot">Dot</option>
+            <option value="dash">Dash</option>
+            <option value="dashdot">Dash-Dot</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>Marker</label>
+        <input type="range" id="marker-size" min="4" max="20" value="6"/>
+    </div>
+
+    <div class="control-group">
+        <label>Legend</label>
+        <select id="legend-pos">
+            <option value="default">Default</option>
+            <option value="bottom">Bottom</option>
+            <option value="top-left">Top Left</option>
+            <option value="hidden">Hidden</option>
+        </select>
+    </div>
+
+    <button class="icon-btn" id="reset-zoom" title="Reset axes to auto-range">&#8634; Reset Zoom</button>
+
+    <button class="icon-btn" id="download-png" title="Download as PNG">&#11015; PNG</button>
+    <button class="icon-btn" id="download-svg" title="Download as SVG">&#11015; SVG</button>
+</div>
+
+<div id="chart-wrapper">
+    <div id="chart"></div>
+</div>
+<div class="status" id="status"></div>
+
+<script>
+    (function () {
+        var EL = {
+            chart: document.getElementById('chart'),
+            themeToggle: document.getElementById('theme-toggle'),
+            themeIcon: document.getElementById('theme-icon'),
+            hoverMode: document.getElementById('hover-mode'),
+            dragMode: document.getElementById('drag-mode'),
+            lineStyle: document.getElementById('line-style'),
+            markerSize: document.getElementById('marker-size'),
+            legendPos: document.getElementById('legend-pos'),
+            resetZoom: document.getElementById('reset-zoom'),
+            downloadPng: document.getElementById('download-png'),
+            downloadSvg: document.getElementById('download-svg'),
+            status: document.getElementById('status'),
+        };
+
+        var isDark = false;
+        var figData = null;
+
+        var LIGHT_THEME = {
+            'paper_bgcolor': 'rgba(0,0,0,0)',
+            'plot_bgcolor': 'rgba(0,0,0,0)',
+            'font.color': '#1f2328',
+            'xaxis.gridcolor': '#e1e4e8',
+            'yaxis.gridcolor': '#e1e4e8',
+            'xaxis.linecolor': '#d0d7de',
+            'yaxis.linecolor': '#d0d7de',
+        };
+
+        var DARK_THEME = {
+            'paper_bgcolor': 'rgba(0,0,0,0)',
+            'plot_bgcolor': 'rgba(0,0,0,0)',
+            'font.color': '#e6edf3',
+            'xaxis.gridcolor': '#30363d',
+            'yaxis.gridcolor': '#30363d',
+            'xaxis.linecolor': '#30363d',
+            'yaxis.linecolor': '#30363d',
+        };
+
+        var CONFIG = {
+            responsive: true,
+            displayModeBar: false,
+            scrollZoom: true,
+        };
+
+        function traceIndices() {
+            return figData.map(function (_, i) {
+                return i;
+            });
+        }
+
+        // -- Theme toggle --
+        EL.themeToggle.addEventListener('click', function () {
+            isDark = !isDark;
+            document.body.classList.toggle('dark', isDark);
+            EL.themeIcon.textContent = isDark ? '\u2606' : '\u263D';
+            EL.themeToggle.lastChild.textContent = isDark ? ' Light' : ' Dark';
+            Plotly.relayout(EL.chart, isDark ? DARK_THEME : LIGHT_THEME);
+        });
+
+        // -- Hover mode --
+        EL.hoverMode.addEventListener('change', function () {
+            var val = this.value === 'false' ? false : this.value;
+            Plotly.relayout(EL.chart, {hovermode: val});
+        });
+
+        // -- Drag mode --
+        EL.dragMode.addEventListener('change', function () {
+            Plotly.relayout(EL.chart, {dragmode: this.value});
+        });
+
+        // -- Line style --
+        EL.lineStyle.addEventListener('change', function () {
+            Plotly.restyle(EL.chart, {'line.dash': this.value}, traceIndices());
+        });
+
+        // -- Marker size --
+        EL.markerSize.addEventListener('input', function () {
+            Plotly.restyle(EL.chart, {'marker.size': parseInt(this.value)}, traceIndices());
+        });
+
+        // -- Legend position --
+        EL.legendPos.addEventListener('change', function () {
+            var update = {};
+            switch (this.value) {
+                case 'bottom':
+                    update = {
+                        showlegend: true,
+                        'legend.orientation': 'h',
+                        'legend.y': -0.2,
+                        'legend.x': 0.5,
+                        'legend.xanchor': 'center'
+                    };
+                    break;
+                case 'top-left':
+                    update = {
+                        showlegend: true,
+                        'legend.orientation': 'v',
+                        'legend.y': 1,
+                        'legend.x': 0,
+                        'legend.xanchor': 'left'
+                    };
+                    break;
+                case 'hidden':
+                    update = {showlegend: false};
+                    break;
+                default:
+                    update = {
+                        showlegend: true,
+                        'legend.orientation': 'v',
+                        'legend.y': 1,
+                        'legend.x': 1.02,
+                        'legend.xanchor': 'left'
+                    };
+            }
+            Plotly.relayout(EL.chart, update);
+        });
+
+        // -- Reset zoom --
+        EL.resetZoom.addEventListener('click', function () {
+            Plotly.relayout(EL.chart, {'xaxis.autorange': true, 'yaxis.autorange': true});
+        });
+
+        // -- Downloads --
+        function downloadChart(format) {
+            Plotly.downloadImage(EL.chart, {
+                format: format,
+                width: 1200,
+                height: 700,
+                scale: 2,
+                filename: 'chart_export',
+            });
+        }
+
+        EL.downloadPng.addEventListener('click', function () {
+            downloadChart('png');
+        });
+        EL.downloadSvg.addEventListener('click', function () {
+            downloadChart('svg');
+        });
+
+        // -- Load chart --
+        fetch('./sample_chart.json')
+            .then(function (r) {
+                return r.json();
+            })
+            .then(function (fig) {
+                figData = fig.data;
+                var layout = fig.layout;
+
+                layout.paper_bgcolor = 'rgba(0,0,0,0)';
+                layout.plot_bgcolor = 'rgba(0,0,0,0)';
+                layout.hovermode = 'x unified';
+                layout.margin = {l: 50, r: 20, t: 50, b: 50};
+
+                Plotly.newPlot(EL.chart, figData, layout, CONFIG);
+                EL.status.textContent = 'Loaded ' + figData.length + ' traces from sample_chart.json';
+            })
+            .catch(function (err) {
+                var msg = document.createElement('p');
+                msg.className = 'error-msg';
+                msg.textContent = 'Failed to load chart: ' + String(err);
+                EL.chart.appendChild(msg);
+            });
+    })();
+</script>
+</body>
+</html>
