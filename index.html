@@ -184,6 +184,15 @@
 
 <div class="controls">
     <div class="control-group">
+        <label>Chart</label>
+        <select id="chart-type">
+            <option value="bar">Bar</option>
+            <option value="line">Line</option>
+            <option value="scatter">Scatter</option>
+        </select>
+    </div>
+
+    <div class="control-group" id="ctrl-hover">
         <label>Hover</label>
         <select id="hover-mode">
             <option value="x unified">X Unified</option>
@@ -194,7 +203,7 @@
         </select>
     </div>
 
-    <div class="control-group">
+    <div class="control-group" id="ctrl-drag">
         <label>Drag</label>
         <select id="drag-mode">
             <option value="zoom">Zoom</option>
@@ -204,7 +213,7 @@
         </select>
     </div>
 
-    <div class="control-group">
+    <div class="control-group" id="ctrl-bar-mode">
         <label>Bar Mode</label>
         <select id="bar-mode">
             <option value="group">Grouped</option>
@@ -214,9 +223,29 @@
         </select>
     </div>
 
-    <div class="control-group">
+    <div class="control-group" id="ctrl-bar-gap">
         <label>Bar Gap</label>
         <input type="range" id="bar-gap" min="0" max="80" value="20"/>
+    </div>
+
+    <div class="control-group" id="ctrl-line-style" style="display:none;">
+        <label>Line</label>
+        <select id="line-style">
+            <option value="solid">Solid</option>
+            <option value="dot">Dot</option>
+            <option value="dash">Dash</option>
+            <option value="dashdot">Dash-Dot</option>
+        </select>
+    </div>
+
+    <div class="control-group" id="ctrl-marker-size" style="display:none;">
+        <label>Marker</label>
+        <input type="range" id="marker-size" min="4" max="20" value="6"/>
+    </div>
+
+    <div class="control-group" id="ctrl-scatter-size" style="display:none;">
+        <label>Dot Size</label>
+        <input type="range" id="scatter-size" min="4" max="30" value="10"/>
     </div>
 
     <div class="control-group">
@@ -256,19 +285,33 @@
     (function () {
         var EL = {
             chart: document.getElementById('chart'),
+            chartType: document.getElementById('chart-type'),
             themeToggle: document.getElementById('theme-toggle'),
             themeIcon: document.getElementById('theme-icon'),
             hoverMode: document.getElementById('hover-mode'),
             dragMode: document.getElementById('drag-mode'),
             barMode: document.getElementById('bar-mode'),
             barGap: document.getElementById('bar-gap'),
+            lineStyle: document.getElementById('line-style'),
+            markerSize: document.getElementById('marker-size'),
+            scatterSize: document.getElementById('scatter-size'),
             legendPos: document.getElementById('legend-pos'),
             colorPalette: document.getElementById('color-palette'),
             resetZoom: document.getElementById('reset-zoom'),
             downloadPng: document.getElementById('download-png'),
             downloadSvg: document.getElementById('download-svg'),
             status: document.getElementById('status'),
+            // control wrappers
+            ctrlHover: document.getElementById('ctrl-hover'),
+            ctrlDrag: document.getElementById('ctrl-drag'),
+            ctrlBarMode: document.getElementById('ctrl-bar-mode'),
+            ctrlBarGap: document.getElementById('ctrl-bar-gap'),
+            ctrlLineStyle: document.getElementById('ctrl-line-style'),
+            ctrlMarkerSize: document.getElementById('ctrl-marker-size'),
+            ctrlScatterSize: document.getElementById('ctrl-scatter-size'),
         };
+
+        var DEFAULT_COLORS = ['#636efa', '#EF553B', '#00cc96', '#ab63fa', '#FFA15A', '#19d3f3', '#FF6692', '#B6E880', '#FF97FF', '#FECB52'];
 
         var PALETTES = {
             vivid:   ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6', '#bfef45', '#fabed4', '#469990'],
@@ -279,7 +322,8 @@
         };
 
         var isDark = false;
-        var figData = null;
+        var figJSON = null;   // full figure from sample_chart.json
+        var currentType = 'bar';
 
         var LIGHT_THEME = {
             'paper_bgcolor': 'rgba(0,0,0,0)',
@@ -307,11 +351,93 @@
             scrollZoom: true,
         };
 
-        function traceIndices() {
-            return figData.map(function (_, i) {
-                return i;
-            });
+        function clone(obj) {
+            return JSON.parse(JSON.stringify(obj));
         }
+
+        function getColors() {
+            var palette = EL.colorPalette.value;
+            return (palette !== 'default' && PALETTES[palette]) ? PALETTES[palette] : null;
+        }
+
+        function applyPalette(traces) {
+            var colors = getColors();
+            if (!colors) return traces;
+            traces.forEach(function (t, i) {
+                var c = colors[i % colors.length];
+                if (t.marker) t.marker.color = c;
+                if (t.line) t.line.color = c;
+            });
+            return traces;
+        }
+
+        function buildTraces(type) {
+            var traces = clone(figJSON.data);
+            traces.forEach(function (t) {
+                if (type === 'bar') {
+                    t.type = 'bar';
+                    delete t.mode;
+                    delete t.line;
+                } else if (type === 'line') {
+                    t.type = 'scatter';
+                    t.mode = 'lines+markers';
+                    t.line = t.line || {};
+                    t.line.dash = EL.lineStyle.value;
+                    t.marker = t.marker || {};
+                    t.marker.size = parseInt(EL.markerSize.value);
+                } else {
+                    t.type = 'scatter';
+                    t.mode = 'markers';
+                    delete t.line;
+                    t.marker = t.marker || {};
+                    t.marker.size = parseInt(EL.scatterSize.value);
+                }
+            });
+            return applyPalette(traces);
+        }
+
+        function buildLayout(type) {
+            var layout = clone(figJSON.layout);
+            var theme = isDark ? DARK_THEME : LIGHT_THEME;
+            layout.paper_bgcolor = theme['paper_bgcolor'];
+            layout.plot_bgcolor = theme['plot_bgcolor'];
+            layout.font = {color: theme['font.color']};
+            layout.hovermode = 'x unified';
+            layout.margin = {l: 50, r: 20, t: 50, b: 50};
+            if (type === 'bar') {
+                layout.barmode = EL.barMode.value;
+                layout.bargap = parseInt(EL.barGap.value) / 100;
+            }
+            return layout;
+        }
+
+        function renderChart() {
+            if (!figJSON) return;
+            var type = currentType;
+            Plotly.newPlot(EL.chart, buildTraces(type), buildLayout(type), CONFIG);
+            EL.status.textContent = type.charAt(0).toUpperCase() + type.slice(1) + ' chart \u2014 ' + figJSON.data.length + ' categories';
+        }
+
+        // -- Toggle control visibility --
+
+        function toggleControls(type) {
+            var isBar = type === 'bar';
+            var isLine = type === 'line';
+            var isScatter = type === 'scatter';
+
+            EL.ctrlBarMode.style.display = isBar ? '' : 'none';
+            EL.ctrlBarGap.style.display = isBar ? '' : 'none';
+            EL.ctrlLineStyle.style.display = isLine ? '' : 'none';
+            EL.ctrlMarkerSize.style.display = isLine ? '' : 'none';
+            EL.ctrlScatterSize.style.display = isScatter ? '' : 'none';
+        }
+
+        // -- Chart type --
+        EL.chartType.addEventListener('change', function () {
+            currentType = this.value;
+            toggleControls(currentType);
+            renderChart();
+        });
 
         // -- Theme toggle --
         EL.themeToggle.addEventListener('click', function () {
@@ -319,7 +445,7 @@
             document.body.classList.toggle('dark', isDark);
             EL.themeIcon.textContent = isDark ? '\u2606' : '\u263D';
             EL.themeToggle.lastChild.textContent = isDark ? ' Light' : ' Dark';
-            Plotly.relayout(EL.chart, isDark ? DARK_THEME : LIGHT_THEME);
+            renderChart();
         });
 
         // -- Hover mode --
@@ -343,74 +469,43 @@
             Plotly.relayout(EL.chart, {bargap: parseInt(this.value) / 100});
         });
 
+        // -- Line style --
+        EL.lineStyle.addEventListener('change', function () {
+            renderChart();
+        });
+
+        // -- Marker size --
+        EL.markerSize.addEventListener('input', function () {
+            renderChart();
+        });
+
+        // -- Scatter dot size --
+        EL.scatterSize.addEventListener('input', function () {
+            renderChart();
+        });
+
         // -- Legend position --
         EL.legendPos.addEventListener('change', function () {
             var update = {};
             switch (this.value) {
                 case 'bottom':
-                    update = {
-                        showlegend: true,
-                        'legend.orientation': 'h',
-                        'legend.y': -0.2,
-                        'legend.x': 0.5,
-                        'legend.xanchor': 'center'
-                    };
+                    update = {showlegend: true, 'legend.orientation': 'h', 'legend.y': -0.2, 'legend.x': 0.5, 'legend.xanchor': 'center'};
                     break;
                 case 'top-left':
-                    update = {
-                        showlegend: true,
-                        'legend.orientation': 'v',
-                        'legend.y': 1,
-                        'legend.x': 0,
-                        'legend.xanchor': 'left'
-                    };
+                    update = {showlegend: true, 'legend.orientation': 'v', 'legend.y': 1, 'legend.x': 0, 'legend.xanchor': 'left'};
                     break;
                 case 'hidden':
                     update = {showlegend: false};
                     break;
                 default:
-                    update = {
-                        showlegend: true,
-                        'legend.orientation': 'v',
-                        'legend.y': 1,
-                        'legend.x': 1.02,
-                        'legend.xanchor': 'left'
-                    };
+                    update = {showlegend: true, 'legend.orientation': 'v', 'legend.y': 1, 'legend.x': 1.02, 'legend.xanchor': 'left'};
             }
             Plotly.relayout(EL.chart, update);
         });
 
         // -- Color palette --
-        var originalColors = null;
-
         EL.colorPalette.addEventListener('change', function () {
-            var palette = this.value;
-            if (!figData) return;
-
-            if (!originalColors) {
-                originalColors = figData.map(function (trace) {
-                    return (trace.line && trace.line.color) || (trace.marker && trace.marker.color) || null;
-                });
-            }
-
-            var indices = traceIndices();
-            if (palette === 'default') {
-                indices.forEach(function (i) {
-                    Plotly.restyle(EL.chart, {
-                        'line.color': originalColors[i],
-                        'marker.color': originalColors[i],
-                    }, [i]);
-                });
-            } else {
-                var colors = PALETTES[palette];
-                indices.forEach(function (i) {
-                    var c = colors[i % colors.length];
-                    Plotly.restyle(EL.chart, {
-                        'line.color': c,
-                        'marker.color': c,
-                    }, [i]);
-                });
-            }
+            renderChart();
         });
 
         // -- Reset zoom --
@@ -420,38 +515,18 @@
 
         // -- Downloads --
         function downloadChart(format) {
-            Plotly.downloadImage(EL.chart, {
-                format: format,
-                width: 1200,
-                height: 700,
-                scale: 2,
-                filename: 'chart_export',
-            });
+            Plotly.downloadImage(EL.chart, {format: format, width: 1200, height: 700, scale: 2, filename: 'chart_export'});
         }
+        EL.downloadPng.addEventListener('click', function () { downloadChart('png'); });
+        EL.downloadSvg.addEventListener('click', function () { downloadChart('svg'); });
 
-        EL.downloadPng.addEventListener('click', function () {
-            downloadChart('png');
-        });
-        EL.downloadSvg.addEventListener('click', function () {
-            downloadChart('svg');
-        });
-
-        // -- Load chart --
+        // -- Load data --
         fetch('./sample_chart.json')
-            .then(function (r) {
-                return r.json();
-            })
+            .then(function (r) { return r.json(); })
             .then(function (fig) {
-                figData = fig.data;
-                var layout = fig.layout;
-
-                layout.paper_bgcolor = 'rgba(0,0,0,0)';
-                layout.plot_bgcolor = 'rgba(0,0,0,0)';
-                layout.hovermode = 'x unified';
-                layout.margin = {l: 50, r: 20, t: 50, b: 50};
-
-                Plotly.newPlot(EL.chart, figData, layout, CONFIG);
-                EL.status.textContent = 'Loaded ' + figData.length + ' traces from sample_chart.json';
+                figJSON = fig;
+                toggleControls('bar');
+                renderChart();
             })
             .catch(function (err) {
                 var msg = document.createElement('p');
